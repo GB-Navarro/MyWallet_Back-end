@@ -37,6 +37,7 @@ const registrationDataSchema = Joi.object({
 app.post("/sign-up", (req, res) => {
     let registrationData = req.body;
     if(validateRegistrationData(registrationData)){
+        //db.collection("users").insertOne();
         res.send("Hello World !");
     }else{
         console.log()
@@ -49,8 +50,10 @@ app.listen(5000);
 function validateRegistrationData(registrationData){
     let isValid;
     if(registrationDataSchema.validate(registrationData).error === undefined){
-        isValid = true;
-        return isValid;
+        if(registrationData.password === registrationData.confirmPassword){
+            isValid = true;
+            return isValid;
+        }   
     }else{
         isValid = false;
         return isValid;

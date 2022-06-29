@@ -62,7 +62,8 @@ app.post("/sign-up", async (req, res) => {
 
 app.post("/sign-in", (req, res) => {
     let userData = req.body;
-
+    console.log(userData);
+    res.send("Em construção");
 });
 
 app.listen(5000);

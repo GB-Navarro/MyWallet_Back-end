@@ -39,6 +39,11 @@ const registrationDataSchema = Joi.object({
     //estudar mais sobre validações de email e aplicar aqui
 })
 
+const userDataSchema = Joi.object({
+    email: Joi.string().min(5).email({minDomainSegments: 2, tlds:{allow: ['com']}}).required(),
+    password: Joi.string().min(8).required()
+})
+
 //criptografar a senha antes de enviar pro banco de dados (usar a lib becrypt)
 //não criar usuário com mesmo nome ou email
 app.post("/sign-up", async (req, res) => {
@@ -53,7 +58,12 @@ app.post("/sign-up", async (req, res) => {
     }else{
         res.sendStatus(422);
     }
-})
+});
+
+app.post("/sign-in", (req, res) => {
+    let userData = req.body;
+
+});
 
 app.listen(5000);
 

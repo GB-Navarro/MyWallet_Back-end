@@ -1,8 +1,11 @@
+//Ajeitar os scripts no package.json antes de entregar o projeto
+
 import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import Joi from "joi";
+import bcrypt from "bcrypt";
 
 dotenv.config()
 
@@ -85,7 +88,7 @@ async function createNewUser(registrationData){
     let newUser = {
         name: name,
         email: email,
-        password: password
+        password: bcrypt.hashSync(password,10)
     }
     let promisse = await db.collection("users").insertOne(newUser);
     let isCreated = promisse.acknowledged;

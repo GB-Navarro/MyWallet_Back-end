@@ -17,7 +17,9 @@ mongoClient.connect().then(() => {
 app.use(express.json());
 app.use(cors());
 
-app.get("/teste", (req, res) => {
+//let 
+
+app.post("/sign-up", (req, res) => {
     res.send("Hello World !");
 })
 

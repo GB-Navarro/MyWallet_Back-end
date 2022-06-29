@@ -6,6 +6,7 @@ import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import Joi from "joi";
 import bcrypt from "bcrypt";
+import { v4 as uuid } from 'uuid';
 
 dotenv.config()
 
@@ -60,17 +61,27 @@ app.post("/sign-up", async (req, res) => {
     }
 });
 
-app.post("/sign-in", (req, res) => {
+app.post("/sign-in", async (req, res) => {
     let userData = req.body;
-    console.log(userData);
-    res.send("Em construção");
+    verifyUserDataFormat(userData);
+    if( await verifyUserExistence(userData)){
+        console.log("O usuário existe no banco de dados") // Logo, posso prosseguir com o login
+        let token = uuid();
+        res.status(200).send(token); //se tudo der certo, vou cair aqui
+    }else{
+        console.log("O usuário não existe no banco de dados") // Logo, não posso prosseguir com o login
+    }
+    // Testes a fazer
+    // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema)
+    // 2 - Conferir se o usuário enviado pelo front existe no banco de dados
 });
 
 app.listen(5000);
 
 async function validateRegistrationData(registrationData){
     let isValid;
-    if(registrationDataSchema.validate(registrationData).error === undefined){
+    let validationResult = registrationDataSchema.validate(registrationData).error === undefined;
+    if(validationResult){
         if(registrationData.password === registrationData.confirmPassword){
             let {name, email} = registrationData;
             if(( await checkNameExistence(name)) && ( await checkEmailExistence(email))){
@@ -131,5 +142,29 @@ async function checkNameExistence(wantedName){
     }else{
         isNameValid = false;
         return isNameValid;
+    }
+}
+
+function verifyUserDataFormat(user){
+    let validationResult = userDataSchema.validate(user).error === undefined;
+    let isValid;
+    if(validationResult){
+        isValid = true;
+        return isValid;
+    }else{
+        isValid = false;
+        return isValid;
+    }
+}
+
+async function verifyUserExistence(user){
+    let wantedUserEmail = await db.collection("users").findOne({email: user.email}); //Buscando um usuário que possua esse e-mail
+    let userExists;
+    if(wantedUserEmail === null){
+        userExists = false;
+        return userExists;
+    }else{
+        userExists = true;
+        return userExists;
     }
 }

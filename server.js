@@ -70,7 +70,11 @@ app.post("/sign-in", async (req, res) => {
     if (await verifyUserExistence(userData)) {
       let userToken = uuid();
       if(createUserSession(userData, userToken)){
-        res.status(200).send(userToken);
+        let response = {
+          name: await getUserName(userData),
+          token: userToken
+        }
+        res.status(200).send(response);
       }
     } else {
       console.log("O usuário não existe no banco de dados");
@@ -180,7 +184,7 @@ async function verifyUserExistence(user) {
   const wantedUser = await db
     .collection("users")
     .findOne({ email: user.email });
-    
+
   const userEmailExists = await wantedUser.email;
   const wantedUserPassword = await wantedUser.password;
   const isPasswordEqual = bcrypt.compareSync(user.password, wantedUserPassword);
@@ -214,4 +218,12 @@ async function createUserSession(userData,userToken){
         isCreated = false;
         return isCreated;
     }
+}
+
+async function getUserName(user){
+  let wantedUser = await db.
+  collection("users").
+  findOne({email: user.email});
+  let userName = wantedUser.name;
+  return userName;
 }

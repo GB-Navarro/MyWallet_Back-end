@@ -16,7 +16,7 @@ const mongoClient = new MongoClient(process.env.MONGO_URL);
 
 let db;
 mongoClient.connect().then(() => {
-  db = mongoClient.db("myWallet"); //conferir se já foi criado.
+  db = mongoClient.db("myWallet");
 });
 
 app.use(express.json());
@@ -26,7 +26,7 @@ let registrationData = {
   name: "",
   email: "",
   password: "",
-  confirmPassword: "",
+  confirmedPassword: "",
 };
 // preciso desse objeto aqui ?
 
@@ -37,7 +37,7 @@ const registrationDataSchema = Joi.object({
     .email({ minDomainSegments: 2, tlds: { allow: ["com"] } })
     .required(),
   password: Joi.string().min(8).required(),
-  confirmPassword: Joi.string().min(8).required(),
+  confirmedPassword: Joi.string().min(8).required(),
   //usar regex aqui (junto com o Joi) pra que as senhas criadas sejam obrigatoriamente senhas fortes
   //usar regex pra que os nomes sejam criados apenas com caracteres
   //estudar mais sobre validações de email e aplicar aqui
@@ -50,20 +50,17 @@ const userDataSchema = Joi.object({
     .required(),
   password: Joi.string().min(8).required(),
 });
-
-//criptografar a senha antes de enviar pro banco de dados (usar a lib becrypt)
-//não criar usuário com mesmo nome ou email
 app.post("/sign-up", async (req, res) => {
   let registrationData = req.body;
   if (await validateRegistrationData(registrationData)) {
     let newUserIsCreated = await createNewUser(registrationData);
     if (newUserIsCreated) {
-      res.sendStatus(201);
+      res.status(201).send("Ok!");
     } else {
       res.sendStatus(500);
     }
   } else {
-    res.sendStatus(422);
+    res.status(422).send("Err!"); // O status e a mensagem não estão sendo enviados pro front
   }
 });
 
@@ -73,17 +70,20 @@ app.post("/sign-in", async (req, res) => {
     if (await verifyUserExistence(userData)) {
       let userToken = uuid();
       if(createUserSession(userData, userToken)){
-        res.status(200).send(token);
+        res.status(200).send(userToken);
       }
     } else {
       console.log("O usuário não existe no banco de dados");
+      res.sendStatus(401);
     }
   } else {
     console.log("O formato de algum dos dados de login não é válido");
+    res.sendStatus(422);
   }
   // Testes a fazer
   // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema)
   // 2 - Conferir se o usuário enviado pelo front existe no banco de dados
+  // 3 - Verificar se a sessão do usuário foi criada no banco de dados
 });
 
 app.listen(5000);
@@ -93,7 +93,7 @@ async function validateRegistrationData(registrationData) {
   let validationResult =
     registrationDataSchema.validate(registrationData).error === undefined;
   if (validationResult) {
-    if (registrationData.password === registrationData.confirmPassword) {
+    if (registrationData.password === registrationData.confirmedPassword) {
       let { name, email } = registrationData;
       if (
         (await checkNameExistence(name)) &&
@@ -177,16 +177,24 @@ function verifyUserDataFormat(user) {
 }
 
 async function verifyUserExistence(user) {
-  let wantedUserEmail = await db
+  const wantedUser = await db
     .collection("users")
-    .findOne({ email: user.email }); //Buscando um usuário que possua esse e-mail
+    .findOne({ email: user.email });
+    
+  const userEmailExists = await wantedUser.email;
+  const wantedUserPassword = await wantedUser.password;
+  const isPasswordEqual = bcrypt.compareSync(user.password, wantedUserPassword);
+
   let userExists;
-  if (wantedUserEmail === null) {
+
+  if (userEmailExists === null) {
     userExists = false;
     return userExists;
   } else {
-    userExists = true;
-    return userExists;
+    if(isPasswordEqual){
+      userExists = true;
+      return userExists;
+    } 
   }
 }
 

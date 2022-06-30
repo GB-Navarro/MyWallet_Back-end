@@ -85,8 +85,8 @@ app.post("/sign-in", async (req, res) => {
     res.sendStatus(422);
   }
   // Testes a fazer
-  // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema)
-  // 2 - Conferir se o usuário enviado pelo front existe no banco de dados
+  // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema) - Ok!
+  // 2 - Conferir se o usuário enviado pelo front existe no banco de dados - Ok!
   // 3 - Verificar se a sessão do usuário foi criada no banco de dados
 });
 
@@ -185,20 +185,25 @@ async function verifyUserExistence(user) {
     .collection("users")
     .findOne({ email: user.email });
 
-  const userEmailExists = await wantedUser.email;
-  const wantedUserPassword = await wantedUser.password;
-  const isPasswordEqual = bcrypt.compareSync(user.password, wantedUserPassword);
-
   let userExists;
 
-  if (userEmailExists === null) {
+  if(wantedUser != null){
+    const userEmailExists = await wantedUser.email;
+    const wantedUserPassword = await wantedUser.password;
+    const isPasswordEqual = bcrypt.compareSync(user.password, wantedUserPassword);
+
+    if (userEmailExists === null) {
+      userExists = false;
+      return userExists;
+    } else {
+      if(isPasswordEqual){
+        userExists = true;
+        return userExists;
+      } 
+    }
+  }else{
     userExists = false;
     return userExists;
-  } else {
-    if(isPasswordEqual){
-      userExists = true;
-      return userExists;
-    } 
   }
 }
 

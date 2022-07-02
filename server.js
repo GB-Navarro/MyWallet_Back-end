@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import Joi from "joi";
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
+import { join } from "path";
 
 dotenv.config();
 
@@ -54,10 +55,22 @@ const userDataSchema = Joi.object({
 });
 
 
+
+const entrySchema = Joi.object({
+  userName: Joi.string().min(1).required(),
+  type: Joi.string().min(1).required(),
+  value: Joi.string().min(1).required(),
+  description: Joi.string().min(1).required()
+})
+
+const tokenSchema = Joi.string().required().min(1);
+
+
 app.post("/sign-up", signUp);
 
 app.post("/sign-in", signIn);
 
+app.post("/entry", entry);
 app.listen(5000);
 
 async function validateRegistrationData(registrationData) {
@@ -262,4 +275,50 @@ async function signIn(req, res){
     // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema) - Ok!
     // 2 - Conferir se o usuário enviado pelo front existe no banco de dados - Ok!
     // 3 - Verificar se a sessão do usuário foi criada no banco de dados
+}
+
+async function entry(req, res){
+  let data = req.body;
+  let config = req.headers.authorization;
+  let isDataValid = validateEntryData(data);
+  let isTokenValid = await validateToken(config);
+  if(isDataValid && isTokenValid){
+    console.log("Os dados são válidos");
+  }else{
+    console.log("Os dados inseridos não são válidos!");
+  }
+
+
+  /*let result1 = entrySchema.validate(data).error*/
+}
+
+function validateEntryData(data){
+  let isDataValid = entrySchema.validate(data).error;
+  if(isDataValid === undefined){
+    return true;
+  }else{
+    return false;
+  }
+}
+
+async function validateToken(token){
+  let isTokenFormatValid;
+  let tokenExists;
+  let isTokenValid;
+  let tokenSearch = await db.collection("sessions").findOne({token: token})
+
+  if(tokenSchema.validate(token).error === undefined){
+    isTokenFormatValid = true;
+  }else{
+    isTokenFormatValid = false;
+  }
+  if(tokenSearch != null){
+    tokenExists = true;
+  }else{
+    tokenExists = false;
+  }
+  if(isTokenFormatValid && tokenExists){
+    isTokenValid = true;
+    return isTokenValid;
+  }
 }

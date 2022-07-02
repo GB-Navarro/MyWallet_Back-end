@@ -1,5 +1,5 @@
 //Ajeitar os scripts no package.json antes de entregar o projeto
-
+// CRIAR A SESSÃO DO USUÁRIO
 import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
@@ -50,45 +50,11 @@ const userDataSchema = Joi.object({
     .required(),
   password: Joi.string().min(8).required(),
 });
-app.post("/sign-up", async (req, res) => {
-  let registrationData = req.body;
-  if (await validateRegistrationData(registrationData)) {
-    let newUserIsCreated = await createNewUser(registrationData);
-    if (newUserIsCreated) {
-      res.status(201).send("Ok!");
-    } else {
-      res.sendStatus(500);
-    }
-  } else {
-    res.status(422).send("Err!"); // O status e a mensagem não estão sendo enviados pro front
-  }
-});
 
-app.post("/sign-in", async (req, res) => {
-  let userData = req.body;
-  if (verifyUserDataFormat(userData)) {
-    if (await verifyUserExistence(userData)) {
-      let userToken = uuid();
-      if(createUserSession(userData, userToken)){
-        let response = {
-          name: await getUserName(userData),
-          token: userToken
-        }
-        res.status(200).send(response);
-      }
-    } else {
-      console.log("O usuário não existe no banco de dados");
-      res.sendStatus(401);
-    }
-  } else {
-    console.log("O formato de algum dos dados de login não é válido");
-    res.sendStatus(422);
-  }
-  // Testes a fazer
-  // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema) - Ok!
-  // 2 - Conferir se o usuário enviado pelo front existe no banco de dados - Ok!
-  // 3 - Verificar se a sessão do usuário foi criada no banco de dados
-});
+
+app.post("/sign-up", signUp);
+
+app.post("/sign-in", signIn);
 
 app.listen(5000);
 
@@ -231,4 +197,44 @@ async function getUserName(user){
   findOne({email: user.email});
   let userName = wantedUser.name;
   return userName;
+}
+
+async function signUp(req, res){
+    let registrationData = req.body;
+    if (await validateRegistrationData(registrationData)) {
+      let newUserIsCreated = await createNewUser(registrationData);
+      if (newUserIsCreated) {
+        res.status(201).send("Ok!");
+      } else {
+        res.sendStatus(500);
+      }
+    } else {
+      res.status(422).send("Err!"); // O status e a mensagem não estão sendo enviados pro front
+    }
+}
+
+async function signIn(req, res){
+    let userData = req.body;
+    if (verifyUserDataFormat(userData)) {
+      if (await verifyUserExistence(userData)) {
+        let userToken = uuid();
+        if(createUserSession(userData, userToken)){
+          let response = {
+            name: await getUserName(userData),
+            token: userToken
+          }
+          res.status(200).send(response);
+        }
+      } else {
+        console.log("O usuário não existe no banco de dados");
+        res.sendStatus(401);
+      }
+    } else {
+      console.log("O formato de algum dos dados de login não é válido");
+      res.sendStatus(422);
+    }
+    // Testes a fazer
+    // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema) - Ok!
+    // 2 - Conferir se o usuário enviado pelo front existe no banco de dados - Ok!
+    // 3 - Verificar se a sessão do usuário foi criada no banco de dados
 }

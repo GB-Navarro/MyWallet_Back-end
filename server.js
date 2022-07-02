@@ -1,3 +1,5 @@
+
+
 //Ajeitar os scripts no package.json antes de entregar o projeto
 // CRIAR A SESSÃO DO USUÁRIO
 import express from "express";
@@ -134,7 +136,7 @@ async function checkNameExistence(wantedName) {
   }
 }
 
-function verifyUserDataFormat(user) {
+function validateUserDataFormat(user) {
   let validationResult = userDataSchema.validate(user).error === undefined;
   let isValid;
   if (validationResult) {
@@ -180,15 +182,35 @@ async function createUserSession(userData,userToken){
         email: email,
         password: password
     }
+    let userHasAActiveSession = await checkIfUserHasAActiveSession(user.email);
     let isCreated;
-    let promisse = await db.collection("sessions").insertOne(user);
-    if(promisse.acknowledged){
-        isCreated = true;
-        return isCreated
+    if(!userHasAActiveSession){
+      let promisse = await db.collection("sessions").insertOne(user);
+      if(promisse.acknowledged){
+          isCreated = true;
+          return isCreated // a sessão do usuário foi criada
+      }else{
+          isCreated = false;
+          return isCreated; // ocorreu um problema ao criar a sessão do usuário
+      }
     }else{
-        isCreated = false;
-        return isCreated;
+      isCreated = false;
+      return isCreated; // o usuário já possui uma sessão ativa
     }
+    
+    
+}
+
+async function checkIfUserHasAActiveSession(userEmail){
+  let promisse = await db.collection("sessions").findOne({email: userEmail});
+  let userHasAActiveSession;
+  if(promisse === null){
+    userHasAActiveSession = false;
+    return userHasAActiveSession
+  }else{
+    userHasAActiveSession = true;
+    return userHasAActiveSession;
+  }
 }
 
 async function getUserName(user){
@@ -215,15 +237,18 @@ async function signUp(req, res){
 
 async function signIn(req, res){
     let userData = req.body;
-    if (verifyUserDataFormat(userData)) {
+    if (validateUserDataFormat(userData)) {
       if (await verifyUserExistence(userData)) {
         let userToken = uuid();
-        if(createUserSession(userData, userToken)){
+        let userSessionsHasCreated = await createUserSession(userData, userToken);
+        if(userSessionsHasCreated){
           let response = {
             name: await getUserName(userData),
             token: userToken
           }
           res.status(200).send(response);
+        }else{
+          res.status(422).send("O usuário já tem uma sessão ativa");
         }
       } else {
         console.log("O usuário não existe no banco de dados");

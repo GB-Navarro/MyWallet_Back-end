@@ -60,7 +60,8 @@ const entrySchema = Joi.object({
   email: Joi.string().min(1).required(),
   type: Joi.string().min(1).required(),
   value: Joi.string().min(1).required(),
-  description: Joi.string().min(1).required()
+  description: Joi.string().min(1).required(),
+  date: Joi.string().min(1).required()
 })
 
 const tokenSchema = Joi.string().required().min(1);
@@ -71,6 +72,9 @@ app.post("/sign-up", signUp);
 app.post("/sign-in", signIn);
 
 app.post("/entry", postEntry);
+
+app.get("/entry", getEntry);
+
 app.listen(5000);
 
 async function validateRegistrationData(registrationData) {
@@ -281,14 +285,15 @@ async function postEntry(req, res){
   let data = req.body;
   let config = req.headers.authorization;
   let isUserDataValid = validateEntryData(data);
+  console.log(data);
   let isUserTokenValid = await validateUserToken(config, data.email);
   if(isUserDataValid && isUserTokenValid){
     let promisse = await db.collection("entryExit").insertOne(data);
     if(promisse.acknowledged){
-      console.log("Os dados foram enviados com sucesso");
+      res.status(200).send("Os dados foram enviados com sucesso")
     }
   }else{
-    console.log("Os dados inseridos não são válidos!");
+    res.status(422).send("Os dados inseridos não são válidos!")
   }
 }
 
@@ -308,7 +313,6 @@ async function validateUserToken(token, email){
   let tokenExists;
   let isTokenValid;
   let search = await db.collection("sessions").findOne({token: token})
-
   if(tokenSchema.validate(token).error === undefined){
     isTokenFormatValid = true;
   }else{
@@ -330,5 +334,35 @@ async function validateUserToken(token, email){
   }else{
     isTokenValid = false;
     return isTokenValid;
+  }
+}
+
+async function getEntry(req, res){
+  let token = req.headers.token;
+  let userData = req.body;
+  let isTokenValid = await validateUserToken(token, userData.email);
+  let userEntrys = await findUserEntrys(userData.email);
+  if(userEntrys.length > 0){
+    console.log("o usuário possui entradas feitas");
+    if(isTokenValid){
+      res.status(200);
+    }else{
+      res.status(422).send("O token do usuário é inválido!");
+    }
+  }else{
+    res.status(200).send("O usuário não possui entradas");
+  }
+
+  res.send("Ok!");
+}
+
+async function findUserEntrys(userEmail){
+  let searchEntrys = await db.collection("entryExit").find({email: userEmail}).toArray();
+  let userEntrys = [];
+  if((searchEntrys != null) && (searchEntrys != undefined)){
+    userEntrys = searchEntrys;
+    return userEntrys;
+  }else{
+    return userEntrys;
   }
 }

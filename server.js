@@ -70,6 +70,8 @@ app.post("/entry", postEntry);
 
 app.get("/entry", getEntry);
 
+app.delete("/home", deleteSession);
+
 app.listen(5000);
 
 async function validateRegistrationData(registrationData) {
@@ -336,7 +338,6 @@ async function getEntry(req, res) {
     let userEntries = await findUserEntries(userEmail);
     if (userEntries.length > 0) {
       if (isTokenValid) {
-        console.log(userEntries);
         res.status(200).send(userEntries);
       } else {
         res.status(422).send("O token do usuário é inválido!");
@@ -366,7 +367,6 @@ async function findUserEntries(userEmail) {
     .collection("entryExit")
     .find({ email: userEmail })
     .toArray();
-  console.log("searchEntries", searchEntries);
   let userEntries = [];
   if (searchEntries != null && searchEntries != undefined) {
     userEntries = filterUserEntries(searchEntries);
@@ -392,4 +392,15 @@ function filterUserEntries(userEntries) {
     filteredUserEntries.push(filteredUserEntry);
   }
   return filteredUserEntries;
+}
+
+async function deleteSession(req, res){
+  let token = req.headers.authorization;
+  try{
+    let promisse = await db.collection("sessions").deleteOne({token: token});
+    res.send("Ok!");
+
+  }catch(error){
+    console.log("Ocorreu um erro ao deslogar o usuário", error);
+  }
 }

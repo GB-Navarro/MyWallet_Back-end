@@ -70,7 +70,7 @@ app.post("/entry", postEntry);
 
 app.get("/entry", getEntry);
 
-app.delete("/home", deleteSession);
+app.delete("/home", logOut);
 
 app.listen(5000);
 
@@ -377,24 +377,16 @@ async function findUserEntries(userEmail) {
 }
 
 function filterUserEntries(userEntries) {
-  let filteredUserEntry = {
-    type: "",
-    value: "",
-    description: "",
-    date: "",
-  };
   let filteredUserEntries = [];
-  for (let i = 0; i < userEntries.length; i++) {
-    filteredUserEntry.type = userEntries[i].type;
-    filteredUserEntry.value = userEntries[i].value;
-    filteredUserEntry.description = userEntries[i].description;
-    filteredUserEntry.date = userEntries[i].date;
-    filteredUserEntries.push(filteredUserEntry);
-  }
+  userEntries.forEach((entry) => {
+    delete entry._id;
+    delete entry.email;
+    filteredUserEntries.push(entry);
+  })
   return filteredUserEntries;
 }
 
-async function deleteSession(req, res){
+async function logOut(req, res){
   let token = req.headers.authorization;
   try{
     let promisse = await db.collection("sessions").deleteOne({token: token});

@@ -336,12 +336,13 @@ async function getEntry(req, res) {
     let userEntries = await findUserEntries(userEmail);
     if (userEntries.length > 0) {
       if (isTokenValid) {
+        console.log(userEntries);
         res.status(200).send(userEntries);
       } else {
         res.status(422).send("O token do usuário é inválido!");
       }
     } else {
-      res.status(200).send("O usuário não possui entradas");
+      res.status(200).send([]);
     }
   } else {
     res.status(404).send("O usuário não existe");
@@ -365,6 +366,7 @@ async function findUserEntries(userEmail) {
     .collection("entryExit")
     .find({ email: userEmail })
     .toArray();
+  console.log("searchEntries", searchEntries);
   let userEntries = [];
   if (searchEntries != null && searchEntries != undefined) {
     userEntries = filterUserEntries(searchEntries);

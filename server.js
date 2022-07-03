@@ -285,7 +285,6 @@ async function postEntry(req, res){
   let data = req.body;
   let config = req.headers.authorization;
   let isUserDataValid = validateEntryData(data);
-  console.log(data);
   let isUserTokenValid = await validateUserToken(config, data.email);
   if(isUserDataValid && isUserTokenValid){
     let promisse = await db.collection("entryExit").insertOne(data);
@@ -341,28 +340,43 @@ async function getEntry(req, res){
   let token = req.headers.token;
   let userData = req.body;
   let isTokenValid = await validateUserToken(token, userData.email);
-  let userEntrys = await findUserEntrys(userData.email);
-  if(userEntrys.length > 0){
-    console.log("o usuário possui entradas feitas");
+  let userEntries = await findUserEntries(userData.email);
+  if(userEntries.length > 0){
     if(isTokenValid){
-      res.status(200);
+      res.status(200).send(userEntries);
     }else{
       res.status(422).send("O token do usuário é inválido!");
     }
   }else{
     res.status(200).send("O usuário não possui entradas");
   }
-
-  res.send("Ok!");
 }
 
-async function findUserEntrys(userEmail){
-  let searchEntrys = await db.collection("entryExit").find({email: userEmail}).toArray();
-  let userEntrys = [];
-  if((searchEntrys != null) && (searchEntrys != undefined)){
-    userEntrys = searchEntrys;
-    return userEntrys;
+async function findUserEntries(userEmail){
+  let searchEntries = await db.collection("entryExit").find({email: userEmail}).toArray();
+  let userEntries = [];
+  if((searchEntries != null) && (searchEntries != undefined)){
+    userEntries = filterUserEntries(searchEntries);
+    return userEntries;
   }else{
-    return userEntrys;
+    return userEntries;
   }
+}
+
+function filterUserEntries(userEntries){
+  let filteredUserEntry = {
+    type:"",
+    value:"",
+    description:"",
+    date:""
+  };
+  let filteredUserEntries = [];
+  for(let i = 0; i < userEntries.length; i++){
+    filteredUserEntry.type = userEntries[i].type;
+    filteredUserEntry.value = userEntries[i].value;
+    filteredUserEntry.description = userEntries[i].description;
+    filteredUserEntry.date = userEntries[i].date;
+    filteredUserEntries.push(filteredUserEntry);
+  }
+  return filteredUserEntries;
 }

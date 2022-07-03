@@ -338,7 +338,11 @@ async function getEntry(req, res) {
     let userEntries = await findUserEntries(userEmail);
     if (userEntries.length > 0) {
       if (isTokenValid) {
-        res.status(200).send(userEntries);
+        let response = {
+          userEntries: await findUserEntries(userEmail),
+          balance: calculateUserBalance(userEntries)
+        }
+        res.status(200).send(response);
       } else {
         res.status(422).send("O token do usuário é inválido!");
       }
@@ -348,6 +352,24 @@ async function getEntry(req, res) {
   } else {
     res.status(404).send("O usuário não existe");
   }
+}
+
+function calculateUserBalance(userEntries){
+  let userBalances = [];
+  let userBalance = 0;
+  userEntries.forEach((entry) => {
+    delete entry.description
+    delete entry.date
+    userBalances.push(entry);
+  });
+  userBalances.forEach((element) => {
+    if(element.type === "entry"){
+      userBalance += parseInt(element.value);
+    }else if(element.type === "exit"){
+      userBalance -= parseInt(element.value);
+    }
+  })
+  return userBalance;
 }
 
 async function finderUserEmail(token) {

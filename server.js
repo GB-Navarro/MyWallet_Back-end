@@ -4,11 +4,11 @@ import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
-import Joi from "joi";
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
 import { join } from "path";
 
+import {registrationDataSchema, userDataSchema, entrySchema, tokenSchema} from "./schemas/schemas.js"
 dotenv.config();
 
 const app = express();
@@ -31,36 +31,7 @@ let registrationData = {
 };
 // preciso desse objeto aqui ?
 
-const registrationDataSchema = Joi.object({
-  name: Joi.string().min(2).required(),
-  email: Joi.string()
-    .min(5)
-    .email({ minDomainSegments: 2, tlds: { allow: ["com"] } })
-    .required(),
-  password: Joi.string().min(8).required(),
-  confirmedPassword: Joi.string().min(8).required(),
-  //usar regex aqui (junto com o Joi) pra que as senhas criadas sejam obrigatoriamente senhas fortes
-  //usar regex pra que os nomes sejam criados apenas com caracteres
-  //estudar mais sobre validações de email e aplicar aqui
-});
 
-const userDataSchema = Joi.object({
-  email: Joi.string()
-    .min(5)
-    .email({ minDomainSegments: 2, tlds: { allow: ["com"] } })
-    .required(),
-  password: Joi.string().min(8).required(),
-});
-
-const entrySchema = Joi.object({
-  email: Joi.string().min(1).required(),
-  type: Joi.string().min(1).required(),
-  value: Joi.string().min(1).required(),
-  description: Joi.string().min(1).required(),
-  date: Joi.string().min(1).required(),
-});
-
-const tokenSchema = Joi.string().required().min(1);
 
 app.post("/sign-up", signUp);
 

@@ -1,5 +1,3 @@
-
-
 //Ajeitar os scripts no package.json antes de entregar o projeto
 // CRIAR A SESSÃO DO USUÁRIO
 import express from "express";
@@ -54,18 +52,15 @@ const userDataSchema = Joi.object({
   password: Joi.string().min(8).required(),
 });
 
-
-
 const entrySchema = Joi.object({
   email: Joi.string().min(1).required(),
   type: Joi.string().min(1).required(),
   value: Joi.string().min(1).required(),
   description: Joi.string().min(1).required(),
-  date: Joi.string().min(1).required()
-})
+  date: Joi.string().min(1).required(),
+});
 
 const tokenSchema = Joi.string().required().min(1);
-
 
 app.post("/sign-up", signUp);
 
@@ -172,206 +167,222 @@ async function verifyUserExistence(user) {
 
   let userExists;
 
-  if(wantedUser != null){
+  if (wantedUser != null) {
     const userEmailExists = await wantedUser.email;
     const wantedUserPassword = await wantedUser.password;
-    const isPasswordEqual = bcrypt.compareSync(user.password, wantedUserPassword);
+    const isPasswordEqual = bcrypt.compareSync(
+      user.password,
+      wantedUserPassword
+    );
 
     if (userEmailExists === null) {
       userExists = false;
       return userExists;
     } else {
-      if(isPasswordEqual){
+      if (isPasswordEqual) {
         userExists = true;
         return userExists;
-      } 
+      }
     }
-  }else{
+  } else {
     userExists = false;
     return userExists;
   }
 }
 
-async function createUserSession(userData,userToken){
-    let {email, password} = userData;
-    let user = {
-        token: userToken,
-        email: email,
-        password: password
-    }
-    let userHasAActiveSession = await checkIfUserHasAActiveSession(user.email);
-    let isCreated;
-    if(!userHasAActiveSession){
-      let promisse = await db.collection("sessions").insertOne(user);
-      if(promisse.acknowledged){
-          isCreated = true;
-          return isCreated // a sessão do usuário foi criada
-      }else{
-          isCreated = false;
-          return isCreated; // ocorreu um problema ao criar a sessão do usuário
-      }
-    }else{
+async function createUserSession(userData, userToken) {
+  let { email, password } = userData;
+  let user = {
+    token: userToken,
+    email: email,
+    password: password,
+  };
+  let userHasAActiveSession = await checkIfUserHasAActiveSession(user.email);
+  let isCreated;
+  if (!userHasAActiveSession) {
+    let promisse = await db.collection("sessions").insertOne(user);
+    if (promisse.acknowledged) {
+      isCreated = true;
+      return isCreated; // a sessão do usuário foi criada
+    } else {
       isCreated = false;
-      return isCreated; // o usuário já possui uma sessão ativa
+      return isCreated; // ocorreu um problema ao criar a sessão do usuário
     }
-    
-    
+  } else {
+    isCreated = false;
+    return isCreated; // o usuário já possui uma sessão ativa
+  }
 }
 
-async function checkIfUserHasAActiveSession(userEmail){
-  let promisse = await db.collection("sessions").findOne({email: userEmail});
+async function checkIfUserHasAActiveSession(userEmail) {
+  let promisse = await db.collection("sessions").findOne({ email: userEmail });
   let userHasAActiveSession;
-  if(promisse === null){
+  if (promisse === null) {
     userHasAActiveSession = false;
-    return userHasAActiveSession
-  }else{
+    return userHasAActiveSession;
+  } else {
     userHasAActiveSession = true;
     return userHasAActiveSession;
   }
 }
 
-async function getUserName(user){
-  let wantedUser = await db.
-  collection("users").
-  findOne({email: user.email});
+async function getUserName(user) {
+  let wantedUser = await db.collection("users").findOne({ email: user.email });
   let userName = wantedUser.name;
   return userName;
 }
 
-async function signUp(req, res){
-    let registrationData = req.body;
-    if (await validateRegistrationData(registrationData)) {
-      let newUserIsCreated = await createNewUser(registrationData);
-      if (newUserIsCreated) {
-        res.status(201).send("Ok!");
-      } else {
-        res.sendStatus(500);
-      }
+async function signUp(req, res) {
+  let registrationData = req.body;
+  if (await validateRegistrationData(registrationData)) {
+    let newUserIsCreated = await createNewUser(registrationData);
+    if (newUserIsCreated) {
+      res.status(201).send("Ok!");
     } else {
-      res.status(422).send("Err!"); // O status e a mensagem não estão sendo enviados pro front
+      res.sendStatus(500);
     }
+  } else {
+    res.status(422).send("Err!"); // O status e a mensagem não estão sendo enviados pro front
+  }
 }
 
-async function signIn(req, res){
-    let userData = req.body;
-    if (validateUserDataFormat(userData)) {
-      if (await verifyUserExistence(userData)) {
-        let userToken = uuid();
-        let userSessionsHasCreated = await createUserSession(userData, userToken);
-        if(userSessionsHasCreated){
-          let response = {
-            name: await getUserName(userData),
-            token: userToken
-          }
-          res.status(200).send(response);
-        }else{
-          res.status(422).send("O usuário já tem uma sessão ativa");
-        }
+async function signIn(req, res) {
+  let userData = req.body;
+  if (validateUserDataFormat(userData)) {
+    if (await verifyUserExistence(userData)) {
+      let userToken = uuid();
+      let userSessionsHasCreated = await createUserSession(userData, userToken);
+      if (userSessionsHasCreated) {
+        let response = {
+          name: await getUserName(userData),
+          token: userToken,
+        };
+        res.status(200).send(response);
       } else {
-        console.log("O usuário não existe no banco de dados");
-        res.sendStatus(401);
+        res.status(422).send("O usuário já tem uma sessão ativa");
       }
     } else {
-      console.log("O formato de algum dos dados de login não é válido");
-      res.sendStatus(422);
+      console.log("O usuário não existe no banco de dados");
+      res.sendStatus(401);
     }
-    // Testes a fazer
-    // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema) - Ok!
-    // 2 - Conferir se o usuário enviado pelo front existe no banco de dados - Ok!
-    // 3 - Verificar se a sessão do usuário foi criada no banco de dados
+  } else {
+    console.log("O formato de algum dos dados de login não é válido");
+    res.sendStatus(422);
+  }
+  // Testes a fazer
+  // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema) - Ok!
+  // 2 - Conferir se o usuário enviado pelo front existe no banco de dados - Ok!
+  // 3 - Verificar se a sessão do usuário foi criada no banco de dados
 }
 
-async function postEntry(req, res){
+async function postEntry(req, res) {
   let data = req.body;
   let config = req.headers.authorization;
   let isUserDataValid = validateEntryData(data);
   let isUserTokenValid = await validateUserToken(config, data.email);
-  if(isUserDataValid && isUserTokenValid){
+  if (isUserDataValid && isUserTokenValid) {
     let promisse = await db.collection("entryExit").insertOne(data);
-    if(promisse.acknowledged){
-      res.status(200).send("Os dados foram enviados com sucesso")
+    if (promisse.acknowledged) {
+      res.status(200).send("Os dados foram enviados com sucesso");
     }
-  }else{
-    res.status(422).send("Os dados inseridos não são válidos!")
+  } else {
+    res.status(422).send("Os dados inseridos não são válidos!");
   }
 }
 
-
-
-function validateEntryData(data){
+function validateEntryData(data) {
   let isDataValid = entrySchema.validate(data).error;
-  if(isDataValid === undefined){
+  if (isDataValid === undefined) {
     return true;
-  }else{
+  } else {
     return false;
   }
 }
 
-async function validateUserToken(token, email){
+async function validateUserToken(token, email) {
   let isTokenFormatValid;
   let tokenExists;
   let isTokenValid;
-  let search = await db.collection("sessions").findOne({token: token})
-  if(tokenSchema.validate(token).error === undefined){
+  let search = await db.collection("sessions").findOne({ token: token });
+  if (tokenSchema.validate(token).error === undefined) {
     isTokenFormatValid = true;
-  }else{
+  } else {
     isTokenFormatValid = false;
   }
-  if(search != null){
+  if (search != null) {
     tokenExists = true;
-  }else{
+  } else {
     tokenExists = false;
   }
-  if(isTokenFormatValid && tokenExists){
-    if(email === search.email){
+  if (isTokenFormatValid && tokenExists) {
+    if (email === search.email) {
       isTokenValid = true;
       return isTokenValid;
-    }else{
+    } else {
       isTokenValid = false;
-      return isTokenValid
+      return isTokenValid;
     }
-  }else{
+  } else {
     isTokenValid = false;
     return isTokenValid;
   }
 }
 
-async function getEntry(req, res){
-  let token = req.headers.token;
-  let userData = req.body;
-  let isTokenValid = await validateUserToken(token, userData.email);
-  let userEntries = await findUserEntries(userData.email);
-  if(userEntries.length > 0){
-    if(isTokenValid){
-      res.status(200).send(userEntries);
-    }else{
-      res.status(422).send("O token do usuário é inválido!");
+async function getEntry(req, res) {
+  let token = req.headers.authorization;
+  let userEmail = await finderUserEmail(token);
+  if (userEmail != undefined) {
+    let isTokenValid = await validateUserToken(token, userEmail);
+    let userEntries = await findUserEntries(userEmail);
+    if (userEntries.length > 0) {
+      if (isTokenValid) {
+        res.status(200).send(userEntries);
+      } else {
+        res.status(422).send("O token do usuário é inválido!");
+      }
+    } else {
+      res.status(200).send("O usuário não possui entradas");
     }
-  }else{
-    res.status(200).send("O usuário não possui entradas");
+  } else {
+    res.status(404).send("O usuário não existe");
   }
 }
 
-async function findUserEntries(userEmail){
-  let searchEntries = await db.collection("entryExit").find({email: userEmail}).toArray();
+async function finderUserEmail(token) {
+  let userEmail;
+  let searchUser = await db.collection("sessions").findOne({ token: token });
+  if (searchUser != null) {
+    userEmail = searchUser.email;
+    return userEmail;
+  } else {
+    userEmail = undefined;
+    return userEmail;
+  }
+}
+
+async function findUserEntries(userEmail) {
+  let searchEntries = await db
+    .collection("entryExit")
+    .find({ email: userEmail })
+    .toArray();
   let userEntries = [];
-  if((searchEntries != null) && (searchEntries != undefined)){
+  if (searchEntries != null && searchEntries != undefined) {
     userEntries = filterUserEntries(searchEntries);
     return userEntries;
-  }else{
+  } else {
     return userEntries;
   }
 }
 
-function filterUserEntries(userEntries){
+function filterUserEntries(userEntries) {
   let filteredUserEntry = {
-    type:"",
-    value:"",
-    description:"",
-    date:""
+    type: "",
+    value: "",
+    description: "",
+    date: "",
   };
   let filteredUserEntries = [];
-  for(let i = 0; i < userEntries.length; i++){
+  for (let i = 0; i < userEntries.length; i++) {
     filteredUserEntry.type = userEntries[i].type;
     filteredUserEntry.value = userEntries[i].value;
     filteredUserEntry.description = userEntries[i].description;

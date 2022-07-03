@@ -57,7 +57,7 @@ const userDataSchema = Joi.object({
 
 
 const entrySchema = Joi.object({
-  userName: Joi.string().min(1).required(),
+  email: Joi.string().min(1).required(),
   type: Joi.string().min(1).required(),
   value: Joi.string().min(1).required(),
   description: Joi.string().min(1).required()
@@ -70,7 +70,7 @@ app.post("/sign-up", signUp);
 
 app.post("/sign-in", signIn);
 
-app.post("/entry", entry);
+app.post("/entry", postEntry);
 app.listen(5000);
 
 async function validateRegistrationData(registrationData) {
@@ -277,20 +277,22 @@ async function signIn(req, res){
     // 3 - Verificar se a sessão do usuário foi criada no banco de dados
 }
 
-async function entry(req, res){
+async function postEntry(req, res){
   let data = req.body;
   let config = req.headers.authorization;
-  let isDataValid = validateEntryData(data);
-  let isTokenValid = await validateToken(config);
-  if(isDataValid && isTokenValid){
-    console.log("Os dados são válidos");
+  let isUserDataValid = validateEntryData(data);
+  let isUserTokenValid = await validateUserToken(config, data.email);
+  if(isUserDataValid && isUserTokenValid){
+    let promisse = await db.collection("entryExit").insertOne(data);
+    if(promisse.acknowledged){
+      console.log("Os dados foram enviados com sucesso");
+    }
   }else{
     console.log("Os dados inseridos não são válidos!");
   }
-
-
-  /*let result1 = entrySchema.validate(data).error*/
 }
+
+
 
 function validateEntryData(data){
   let isDataValid = entrySchema.validate(data).error;
@@ -301,24 +303,32 @@ function validateEntryData(data){
   }
 }
 
-async function validateToken(token){
+async function validateUserToken(token, email){
   let isTokenFormatValid;
   let tokenExists;
   let isTokenValid;
-  let tokenSearch = await db.collection("sessions").findOne({token: token})
+  let search = await db.collection("sessions").findOne({token: token})
 
   if(tokenSchema.validate(token).error === undefined){
     isTokenFormatValid = true;
   }else{
     isTokenFormatValid = false;
   }
-  if(tokenSearch != null){
+  if(search != null){
     tokenExists = true;
   }else{
     tokenExists = false;
   }
   if(isTokenFormatValid && tokenExists){
-    isTokenValid = true;
+    if(email === search.email){
+      isTokenValid = true;
+      return isTokenValid;
+    }else{
+      isTokenValid = false;
+      return isTokenValid
+    }
+  }else{
+    isTokenValid = false;
     return isTokenValid;
   }
 }

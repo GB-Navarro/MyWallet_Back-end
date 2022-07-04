@@ -1,5 +1,5 @@
 import { v4 as uuid } from "uuid";
-import { validateRegistrationData, createNewUser, verifyUserExistence, createUserSession, getUserName } from "../models/user.js";
+import { validateRegistrationData, createNewUser, verifyUserExistence, createUserSession, getUserName, sendLogOutRequisition } from "../models/user.js";
 import validateUserDataFormat from "../functions/validateUserDataFormat.js";
 export async function signUp(req, res) {
   let registrationData = req.body;
@@ -37,5 +37,15 @@ export async function signIn(req, res) {
   } else {
     console.log("O formato de algum dos dados de login não é válido");
     res.sendStatus(422);
+  }
+}
+
+export async function logOut(req, res) {
+  let token = req.headers.authorization;
+  let result = await sendLogOutRequisition(token);
+  if(result){
+    res.send("Ok!");
+  }else{
+    console.log("Ocorreu um erro ao deslogar o usuário");
   }
 }

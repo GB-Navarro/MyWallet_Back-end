@@ -6,7 +6,7 @@ import { registrationDataSchema, tokenSchema } from "./../schemas/schemas.js"
 import filterUserEntries from "./../functions/filterUserEntries.js";
 
 dotenv.config();
-const mongoClient = new MongoClient(process.env.MONGO_URL);
+const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
 mongoClient.connect().then(() => {
   db = mongoClient.db("myWallet");

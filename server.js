@@ -1,14 +1,14 @@
-//Ajeitar os scripts no package.json antes de entregar o projeto
 import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
-import { v4 as uuid } from "uuid";
+
 
 import calculateUserBalance from "./functions/calculateUserBalance.js";
 import validateEntryData from "./functions/validateEntryData.js";
 import validateUserDataFormat from "./functions/validateUserDataFormat.js";
 import {
+  createNewUser,
   validateRegistrationData,
   verifyUserExistence,
   createUserSession,
@@ -16,9 +16,11 @@ import {
   validateUserToken,
   finderUserEmail,
   findUserEntries,
+  sendUserEntry,
+  sendLogOutRequisition
 } from "./models/user.js";
 
-import { createNewUser } from "./models/user.js";
+import { signUp, signIn } from "./controllers/authController.js"
 
 dotenv.config();
 
@@ -47,44 +49,8 @@ app.delete("/home", logOut);
 app.listen(5000);
 
 
-async function signUp(req, res) {
-  let registrationData = req.body;
-  if (await validateRegistrationData(registrationData)) {
-    let newUserIsCreated = await createNewUser(registrationData);
-    if (newUserIsCreated) {
-      res.status(201).send("Ok!");
-    } else {
-      res.sendStatus(500);
-    }
-  } else {
-    res.status(422).send("Err!"); // O status e a mensagem não estão sendo enviados pro front
-  }
-}
 
-async function signIn(req, res) {
-  let userData = req.body;
-  if (validateUserDataFormat(userData)) {
-    if (await verifyUserExistence(userData)) {
-      let userToken = uuid();
-      let userSessionsHasCreated = await createUserSession(userData, userToken);
-      if (userSessionsHasCreated) {
-        let response = {
-          name: await getUserName(userData),
-          token: userToken,
-        };
-        res.status(200).send(response);
-      } else {
-        res.status(422).send("O usuário já tem uma sessão ativa");
-      }
-    } else {
-      console.log("O usuário não existe no banco de dados");
-      res.sendStatus(401);
-    }
-  } else {
-    console.log("O formato de algum dos dados de login não é válido");
-    res.sendStatus(422);
-  }
-}
+
 
 async function postEntry(req, res) {
   let data = req.body;
@@ -92,14 +58,15 @@ async function postEntry(req, res) {
   let isUserDataValid = validateEntryData(data);
   let isUserTokenValid = await validateUserToken(config, data.email);
   if (isUserDataValid && isUserTokenValid) {
-    let promisse = await db.collection("entryExit").insertOne(data);
-    if (promisse.acknowledged) {
+    let result = await sendUserEntry(data);
+    if (result) {
       res.status(200).send("Os dados foram enviados com sucesso");
     }
   } else {
     res.status(422).send("Os dados inseridos não são válidos!");
   }
 }
+
 
 async function getEntry(req, res) {
   let token = req.headers.authorization;
@@ -127,10 +94,12 @@ async function getEntry(req, res) {
 
 async function logOut(req, res) {
   let token = req.headers.authorization;
-  try {
-    let promisse = await db.collection("sessions").deleteOne({ token: token });
+  let result = await sendLogOutRequisition(token);
+  if(result){
     res.send("Ok!");
-  } catch (error) {
-    console.log("Ocorreu um erro ao deslogar o usuário", error);
+  }else{
+    console.log("Ocorreu um erro ao deslogar o usuário");
   }
 }
+
+

@@ -215,3 +215,26 @@ export async function validateRegistrationData(registrationData) {
     }
   }
   
+  export async function sendUserEntry(data){
+    let isDataSend;
+   try{
+    await db.collection("entryExit").insertOne(data);
+    isDataSend = true;
+    return isDataSend;
+   }catch(error){
+    isDataSend = false
+    return isDataSend;
+   } 
+  }
+
+  export async function sendLogOutRequisition(token){
+    let isUserLoggedOut;
+    try{
+      await db.collection("sessions").deleteOne({ token: token });
+      isUserLoggedOut = true;
+      return isUserLoggedOut;
+    }catch(error){
+      isUserLoggedOut = false;
+      return isUserLoggedOut;
+    }
+  }

@@ -3,15 +3,22 @@ import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
-import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
-import { join } from "path";
 
-import {registrationDataSchema, tokenSchema} from "./schemas/schemas.js";
-import filterUserEntries from "./functions/filterUserEntries.js";
 import calculateUserBalance from "./functions/calculateUserBalance.js";
 import validateEntryData from "./functions/validateEntryData.js";
 import validateUserDataFormat from "./functions/validateUserDataFormat.js";
+import {
+  validateRegistrationData,
+  verifyUserExistence,
+  createUserSession,
+  getUserName,
+  validateUserToken,
+  finderUserEmail,
+  findUserEntries,
+} from "./models/user.js";
+
+import { createNewUser } from "./models/user.js";
 
 dotenv.config();
 
@@ -39,155 +46,6 @@ app.delete("/home", logOut);
 
 app.listen(5000);
 
-async function validateRegistrationData(registrationData) {
-  let isValid;
-  let validationResult =
-    registrationDataSchema.validate(registrationData).error === undefined;
-  if (validationResult) {
-    if (registrationData.password === registrationData.confirmedPassword) {
-      let { name, email } = registrationData;
-      if (
-        (await checkNameExistence(name)) &&
-        (await checkEmailExistence(email))
-      ) {
-        isValid = true;
-        return isValid;
-      } else {
-        console.log(
-          "Já existe um usuário cadastrado que possui o mesmo nome ou o mesmo e-mail"
-        );
-        isValid = false;
-        return isValid;
-      }
-    } else {
-      console.log("As senhas não coincidem");
-      isValid = false;
-      return isValid;
-    }
-  } else {
-    let schemaError = registrationDataSchema.validate(registrationData).error;
-    console.log(
-      "Ocorreu um erro na validação usando a biblioteca Joi",
-      schemaError
-    );
-    isValid = false;
-    return isValid;
-  }
-}
-
-async function createNewUser(registrationData) {
-  let { name, email, password } = registrationData;
-  let newUser = {
-    name: name,
-    email: email,
-    password: bcrypt.hashSync(password, 10),
-  };
-  let promisse = await db.collection("users").insertOne(newUser);
-  let isCreated = promisse.acknowledged;
-  if (isCreated) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-async function checkEmailExistence(wantedEmail) {
-  let users = await db.collection("users").find().toArray();
-  let isEmailValid;
-  if (users.find((user) => user.email === wantedEmail) === undefined) {
-    isEmailValid = true;
-    return isEmailValid;
-  } else {
-    isEmailValid = false;
-    return isEmailValid;
-  }
-}
-
-async function checkNameExistence(wantedName) {
-  let users = await db.collection("users").find().toArray();
-  let isNameValid;
-  if (users.find((user) => user.name === wantedName) === undefined) {
-    isNameValid = true;
-    return isNameValid;
-  } else {
-    isNameValid = false;
-    return isNameValid;
-  }
-}
-
-
-
-async function verifyUserExistence(user) {
-  const wantedUser = await db
-    .collection("users")
-    .findOne({ email: user.email });
-
-  let userExists;
-
-  if (wantedUser != null) {
-    const userEmailExists = await wantedUser.email;
-    const wantedUserPassword = await wantedUser.password;
-    const isPasswordEqual = bcrypt.compareSync(
-      user.password,
-      wantedUserPassword
-    );
-
-    if (userEmailExists === null) {
-      userExists = false;
-      return userExists;
-    } else {
-      if (isPasswordEqual) {
-        userExists = true;
-        return userExists;
-      }
-    }
-  } else {
-    userExists = false;
-    return userExists;
-  }
-}
-
-async function createUserSession(userData, userToken) {
-  let { email, password } = userData;
-  let user = {
-    token: userToken,
-    email: email,
-    password: password,
-  };
-  let userHasAActiveSession = await checkIfUserHasAActiveSession(user.email);
-  let isCreated;
-  if (!userHasAActiveSession) {
-    let promisse = await db.collection("sessions").insertOne(user);
-    if (promisse.acknowledged) {
-      isCreated = true;
-      return isCreated; // a sessão do usuário foi criada
-    } else {
-      isCreated = false;
-      return isCreated; // ocorreu um problema ao criar a sessão do usuário
-    }
-  } else {
-    isCreated = false;
-    return isCreated; // o usuário já possui uma sessão ativa
-  }
-}
-
-async function checkIfUserHasAActiveSession(userEmail) {
-  let promisse = await db.collection("sessions").findOne({ email: userEmail });
-  let userHasAActiveSession;
-  if (promisse === null) {
-    userHasAActiveSession = false;
-    return userHasAActiveSession;
-  } else {
-    userHasAActiveSession = true;
-    return userHasAActiveSession;
-  }
-}
-
-async function getUserName(user) {
-  let wantedUser = await db.collection("users").findOne({ email: user.email });
-  let userName = wantedUser.name;
-  return userName;
-}
 
 async function signUp(req, res) {
   let registrationData = req.body;
@@ -226,10 +84,6 @@ async function signIn(req, res) {
     console.log("O formato de algum dos dados de login não é válido");
     res.sendStatus(422);
   }
-  // Testes a fazer
-  // 1 - Verificar o formato em que os dados chegam do front-end (usar o userDataSchema) - Ok!
-  // 2 - Conferir se o usuário enviado pelo front existe no banco de dados - Ok!
-  // 3 - Verificar se a sessão do usuário foi criada no banco de dados
 }
 
 async function postEntry(req, res) {
@@ -247,37 +101,6 @@ async function postEntry(req, res) {
   }
 }
 
-
-
-async function validateUserToken(token, email) {
-  let isTokenFormatValid;
-  let tokenExists;
-  let isTokenValid;
-  let search = await db.collection("sessions").findOne({ token: token });
-  if (tokenSchema.validate(token).error === undefined) {
-    isTokenFormatValid = true;
-  } else {
-    isTokenFormatValid = false;
-  }
-  if (search != null) {
-    tokenExists = true;
-  } else {
-    tokenExists = false;
-  }
-  if (isTokenFormatValid && tokenExists) {
-    if (email === search.email) {
-      isTokenValid = true;
-      return isTokenValid;
-    } else {
-      isTokenValid = false;
-      return isTokenValid;
-    }
-  } else {
-    isTokenValid = false;
-    return isTokenValid;
-  }
-}
-
 async function getEntry(req, res) {
   let token = req.headers.authorization;
   let userEmail = await finderUserEmail(token);
@@ -288,8 +111,8 @@ async function getEntry(req, res) {
       if (isTokenValid) {
         let response = {
           userEntries: await findUserEntries(userEmail),
-          balance: calculateUserBalance(userEntries)
-        }
+          balance: calculateUserBalance(userEntries),
+        };
         res.status(200).send(response);
       } else {
         res.status(422).send("O token do usuário é inválido!");
@@ -302,43 +125,12 @@ async function getEntry(req, res) {
   }
 }
 
-
-
-async function finderUserEmail(token) {
-  let userEmail;
-  let searchUser = await db.collection("sessions").findOne({ token: token });
-  if (searchUser != null) {
-    userEmail = searchUser.email;
-    return userEmail;
-  } else {
-    userEmail = undefined;
-    return userEmail;
-  }
-}
-
-async function findUserEntries(userEmail) {
-  let searchEntries = await db
-    .collection("entryExit")
-    .find({ email: userEmail })
-    .toArray();
-  let userEntries = [];
-  if (searchEntries != null && searchEntries != undefined) {
-    userEntries = filterUserEntries(searchEntries);
-    return userEntries;
-  } else {
-    return userEntries;
-  }
-}
-
-
-
-async function logOut(req, res){
+async function logOut(req, res) {
   let token = req.headers.authorization;
-  try{
-    let promisse = await db.collection("sessions").deleteOne({token: token});
+  try {
+    let promisse = await db.collection("sessions").deleteOne({ token: token });
     res.send("Ok!");
-
-  }catch(error){
+  } catch (error) {
     console.log("Ocorreu um erro ao deslogar o usuário", error);
   }
 }

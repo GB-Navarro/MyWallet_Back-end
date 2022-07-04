@@ -1,5 +1,4 @@
 //Ajeitar os scripts no package.json antes de entregar o projeto
-// CRIAR A SESSÃO DO USUÁRIO
 import express from "express";
 import cors from "cors";
 import { MongoClient } from "mongodb";
@@ -8,7 +7,12 @@ import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
 import { join } from "path";
 
-import {registrationDataSchema, userDataSchema, entrySchema, tokenSchema} from "./schemas/schemas.js"
+import {registrationDataSchema, tokenSchema} from "./schemas/schemas.js";
+import filterUserEntries from "./functions/filterUserEntries.js";
+import calculateUserBalance from "./functions/calculateUserBalance.js";
+import validateEntryData from "./functions/validateEntryData.js";
+import validateUserDataFormat from "./functions/validateUserDataFormat.js";
+
 dotenv.config();
 
 const app = express();
@@ -22,16 +26,6 @@ mongoClient.connect().then(() => {
 
 app.use(express.json());
 app.use(cors());
-
-let registrationData = {
-  name: "",
-  email: "",
-  password: "",
-  confirmedPassword: "",
-};
-// preciso desse objeto aqui ?
-
-
 
 app.post("/sign-up", signUp);
 
@@ -121,17 +115,7 @@ async function checkNameExistence(wantedName) {
   }
 }
 
-function validateUserDataFormat(user) {
-  let validationResult = userDataSchema.validate(user).error === undefined;
-  let isValid;
-  if (validationResult) {
-    isValid = true;
-    return isValid;
-  } else {
-    isValid = false;
-    return isValid;
-  }
-}
+
 
 async function verifyUserExistence(user) {
   const wantedUser = await db
@@ -263,14 +247,7 @@ async function postEntry(req, res) {
   }
 }
 
-function validateEntryData(data) {
-  let isDataValid = entrySchema.validate(data).error;
-  if (isDataValid === undefined) {
-    return true;
-  } else {
-    return false;
-  }
-}
+
 
 async function validateUserToken(token, email) {
   let isTokenFormatValid;
@@ -325,23 +302,7 @@ async function getEntry(req, res) {
   }
 }
 
-function calculateUserBalance(userEntries){
-  let userBalances = [];
-  let userBalance = 0;
-  userEntries.forEach((entry) => {
-    delete entry.description
-    delete entry.date
-    userBalances.push(entry);
-  });
-  userBalances.forEach((element) => {
-    if(element.type === "entry"){
-      userBalance += parseInt(element.value);
-    }else if(element.type === "exit"){
-      userBalance -= parseInt(element.value);
-    }
-  })
-  return userBalance;
-}
+
 
 async function finderUserEmail(token) {
   let userEmail;
@@ -369,15 +330,7 @@ async function findUserEntries(userEmail) {
   }
 }
 
-function filterUserEntries(userEntries) {
-  let filteredUserEntries = [];
-  userEntries.forEach((entry) => {
-    delete entry._id;
-    delete entry.email;
-    filteredUserEntries.push(entry);
-  })
-  return filteredUserEntries;
-}
+
 
 async function logOut(req, res){
   let token = req.headers.authorization;
